@@ -51,7 +51,7 @@ You can follow same procedure in the official  AWS document [Getting started wit
    
    example:
    eksctl create cluster --name microdegree \
-      --region ap-south-1 \
+   --region us-east-1 \
    --node-type t2.small \
     ```
 

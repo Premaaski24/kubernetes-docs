@@ -5,7 +5,7 @@ argocd steps:
 
 ```sh 
 kubectl create namespace argocd
-kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/core-install.yaml
+kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
 ```
 
 2. Expose the service
@@ -67,7 +67,7 @@ argocd-server   LoadBalancer   10.152.183.199   <pending>     80:31581/TCP,443:3
 7. TO get the secrete key
 
 ```sh
-kubectl get secret <argocd-secret-name> -n argocd -o jsonpath='{.data.admin\.password}' | base64 --decode
+kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d
 ```
 
 

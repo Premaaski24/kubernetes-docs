@@ -164,6 +164,8 @@ spec:
 ```
 
 
+
+
 ```commandline
 07:37:44 manojkrishnappa@Manojs-MacBook-Pro 01-INTRODUCTION → ls
 img.png         img_1.png       introduction.md pod.yml
@@ -182,5 +184,451 @@ NAME              READY   STATUS    RESTARTS   AGE
 nginx             1/1     Running   0          3m23s
 nginx-test-decl   1/1     Running   0          61s
 ```
+
+
+# REPLICASET
+
+A Replica set is a kubernetes resource used to maintain stable set of pod
+running at any given time 
+Replica set ensure that specific number pods are always running 
+
+```yaml
+apiVersion:  apps/v1
+kind:  ReplicaSet
+metadata:
+  name: my-rs-set
+  labels:
+    app: myapp
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: myapp
+  template:
+    metadata:
+      labels:
+        app: myapp
+    spec:
+      containers:
+      - name: nginx
+        image: nginx
+        ports:
+        - containerPort: 80
+```
+```commandline
+08:01:56 manojkrishnappa@Manojs-MacBook-Pro 01-INTRODUCTION → kubectl apply -f replicaset.yml 
+replicaset.apps/my-rs-set created
+08:03:20 manojkrishnappa@Manojs-MacBook-Pro 01-INTRODUCTION → kubectl get pods
+NAME              READY   STATUS    RESTARTS   AGE
+my-rs-set-4vsfn   1/1     Running   0          6s
+my-rs-set-lkffv   1/1     Running   0          6s
+08:03:26 manojkrishnappa@Manojs-MacBook-Pro 01-INTRODUCTION → kubectl delete pod my-rs-set-4vsfn
+pod "my-rs-set-4vsfn" deleted
+08:03:38 manojkrishnappa@Manojs-MacBook-Pro 01-INTRODUCTION → kubectl get pods
+NAME              READY   STATUS              RESTARTS   AGE
+my-rs-set-87r5q   0/1     ContainerCreating   0          2s
+my-rs-set-lkffv   1/1     Running             0          20s
+08:03:40 manojkrishnappa@Manojs-MacBook-Pro 01-INTRODUCTION → kubectl get pods
+NAME              READY   STATUS    RESTARTS   AGE
+my-rs-set-87r5q   1/1     Running   0          6s
+my-rs-set-lkffv   1/1     Running   0          24s
+```
+
+```commandline
+acBook-Pro 01-INTRODUCTION → kubectl describe pod rs my-rs-set-87r5q
+Name:             my-rs-set-87r5q
+Namespace:        default
+Priority:         0
+Service Account:  default
+Node:             manoj-cka-cluster-1-worker3/172.18.0.3
+Start Time:       Tue, 17 Dec 2024 08:03:38 +0530
+Labels:           app=myapp
+Annotations:      <none>
+Status:           Running
+IP:               10.244.2.4
+IPs:
+  IP:           10.244.2.4
+Controlled By:  ReplicaSet/my-rs-set
+Containers:
+  nginx:
+    Container ID:   containerd://2bcaed57301171d633d99c12d839fed676d531375ae1824a4c8935798d18f3ab
+    Image:          nginx
+    Image ID:       docker.io/library/nginx@sha256:fb197595ebe76b9c0c14ab68159fd3c08bd067ec62300583543f0ebda353b5be
+    Port:           80/TCP
+    Host Port:      0/TCP
+    State:          Running
+      Started:      Tue, 17 Dec 2024 08:03:40 +0530
+    Ready:          True
+    Restart Count:  0
+    Environment:    <none>
+    Mounts:
+      /var/run/secrets/kubernetes.io/serviceaccount from kube-api-access-kr54x (ro)
+Conditions:
+  Type                        Status
+  PodReadyToStartContainers   True 
+  Initialized                 True 
+  Ready                       True 
+  ContainersReady             True 
+  PodScheduled                True 
+Volumes:
+  kube-api-access-kr54x:
+    Type:                    Projected (a volume that contains injected data from multiple sources)
+    TokenExpirationSeconds:  3607
+    ConfigMapName:           kube-root-ca.crt
+    ConfigMapOptional:       <nil>
+    DownwardAPI:             true
+QoS Class:                   BestEffort
+Node-Selectors:              <none>
+Tolerations:                 node.kubernetes.io/not-ready:NoExecute op=Exists for 300s
+                             node.kubernetes.io/unreachable:NoExecute op=Exists for 300s
+Events:
+  Type    Reason     Age   From               Message
+  ----    ------     ----  ----               -------
+  Normal  Scheduled  4m3s  default-scheduler  Successfully assigned default/my-rs-set-87r5q to manoj-cka-cluster-1-worker3
+  Normal  Pulling    4m3s  kubelet            Pulling image "nginx"
+  Normal  Pulled     4m1s  kubelet            Successfully pulled image "nginx" in 1.787s (1.787s including waiting). Image size: 68524740 bytes.
+  Normal  Created    4m1s  kubelet            Created container nginx
+  Normal  Started    4m1s  kubelet            Started container nginx
+```
+
+# Deployments:
+A Deployment manages a set of Pods to run an application workload, usually one that doesn't maintain state.
+A Deployment provides declarative updates for Pods and ReplicaSets.
+
+Use Case
+The following are typical use cases for Deployments:
+
+1.  Create a Deployment to rollout a ReplicaSet. The ReplicaSet creates Pods in the background. Check the status of the rollout to see if it succeeds or not.
+   2.  Declare the new state of the Pods by updating the PodTemplateSpec of the Deployment. A new ReplicaSet is created and the Deployment manages moving the Pods from the old ReplicaSet to the new one at a controlled rate. Each new ReplicaSet updates the revision of the Deployment.
+   3.  Rollback to an earlier Deployment revision if the current state of the Deployment is not stable. Each rollback updates the revision of the Deployment.
+   4.  Scale up the Deployment to facilitate more load.
+   5.  Pause the rollout of a Deployment to apply multiple fixes to its PodTemplateSpec and then resume it to start a new rollout.
+   6.  Use the status of the Deployment as an indicator that a rollout has stuck.
+   7.  Clean up older ReplicaSets that you don't need anymore.
+
+REF: https://kubernetes.io/docs/concepts/workloads/controllers/deployment/
+
+**deployment.yml**
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-deployment
+  labels:
+    app: nginx
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:1.25
+        ports:
+        - containerPort: 80
+```
+
+```commandline
+08:21:46 manojkrishnappa@Manojs-MacBook-Pro 01-INTRODUCTION → kubectl get pods
+No resources found in default namespace.
+08:22:00 manojkrishnappa@Manojs-MacBook-Pro 01-INTRODUCTION → kubectl apply -f deployment.yml 
+deployment.apps/my-deployment created
+08:22:08 manojkrishnappa@Manojs-MacBook-Pro 01-INTRODUCTION → kubectl rollout status deployment my-deployment 
+Waiting for deployment "my-deployment" rollout to finish: 0 of 2 updated replicas are available...
+Waiting for deployment "my-deployment" rollout to finish: 1 of 2 updated replicas are available...
+deployment "my-deployment" successfully rolled out
+08:22:39 manojkrishnappa@Manojs-MacBook-Pro 01-INTRODUCTION → kubectl get pods
+NAME                             READY   STATUS    RESTARTS   AGE
+my-deployment-68489c4b5d-896qd   1/1     Running   0          38s
+my-deployment-68489c4b5d-f7dqb   1/1     Running   0          38s
+```
+
+```commandline
+08:23:49 manojkrishnappa@Manojs-MacBook-Pro 01-INTRODUCTION → kubectl get deployment
+NAME            READY   UP-TO-DATE   AVAILABLE   AGE
+my-deployment   2/2     2            2           2m5s
+08:24:13 manojkrishnappa@Manojs-MacBook-Pro 01-INTRODUCTION → kubectl describe deployment my-deployment
+Name:                   my-deployment
+Namespace:              default
+CreationTimestamp:      Tue, 17 Dec 2024 08:22:08 +0530
+Labels:                 app=nginx
+Annotations:            deployment.kubernetes.io/revision: 1
+Selector:               app=nginx
+Replicas:               2 desired | 2 updated | 2 total | 2 available | 0 unavailable
+StrategyType:           RollingUpdate
+MinReadySeconds:        0
+RollingUpdateStrategy:  25% max unavailable, 25% max surge
+Pod Template:
+  Labels:  app=nginx
+  Containers:
+   nginx:
+    Image:         nginx:1.25
+    Port:          80/TCP
+    Host Port:     0/TCP
+    Environment:   <none>
+    Mounts:        <none>
+  Volumes:         <none>
+  Node-Selectors:  <none>
+  Tolerations:     <none>
+Conditions:
+  Type           Status  Reason
+  ----           ------  ------
+  Available      True    MinimumReplicasAvailable
+  Progressing    True    NewReplicaSetAvailable
+OldReplicaSets:  <none>
+NewReplicaSet:   my-deployment-68489c4b5d (2/2 replicas created)
+Events:
+  Type    Reason             Age    From                   Message
+  ----    ------             ----   ----                   -------
+  Normal  ScalingReplicaSet  2m14s  deployment-controller  Scaled up replica set my-deployment-68489c4b5d to 2
+
+```
+## ROLLING UPDATE STARTERGY
+
+![img_4.png](img_4.png)
+
+![img_3.png](img_3.png)
+
+```commandline
+08:26:15 manojkrishnappa@Manojs-MacBook-Pro 01-INTRODUCTION → kubectl get pods
+NAME                             READY   STATUS    RESTARTS   AGE
+my-deployment-68489c4b5d-896qd   1/1     Running   0          4m15s
+my-deployment-68489c4b5d-f7dqb   1/1     Running   0          4m15s
+08:26:23 manojkrishnappa@Manojs-MacBook-Pro 01-INTRODUCTION → kubectl get deployment
+NAME            READY   UP-TO-DATE   AVAILABLE   AGE
+my-deployment   2/2     2            2           10m
+08:32:10 manojkrishnappa@Manojs-MacBook-Pro 01-INTRODUCTION → kubectl edit deployment my-deployment
+deployment.apps/my-deployment edited
+
+```
+###  we have to replicas to 10 and also image to 1.26 version
+
+```
+08:33:12 manojkrishnappa@Manojs-MacBook-Pro 01-INTRODUCTION → kubectl rollout status deployment my-deployment 
+Waiting for deployment "my-deployment" rollout to finish: 5 out of 10 new replicas have been updated...
+Waiting for deployment "my-deployment" rollout to finish: 5 out of 10 new replicas have been updated...
+Waiting for deployment "my-deployment" rollout to finish: 5 out of 10 new replicas have been updated...
+Waiting for deployment "my-deployment" rollout to finish: 5 out of 10 new replicas have been updated...
+Waiting for deployment "my-deployment" rollout to finish: 5 out of 10 new replicas have been updated...
+Waiting for deployment "my-deployment" rollout to finish: 6 out of 10 new replicas have been updated...
+Waiting for deployment "my-deployment" rollout to finish: 6 out of 10 new replicas have been updated...
+Waiting for deployment "my-deployment" rollout to finish: 6 out of 10 new replicas have been updated...
+Waiting for deployment "my-deployment" rollout to finish: 6 out of 10 new replicas have been updated...
+Waiting for deployment "my-deployment" rollout to finish: 6 out of 10 new replicas have been updated...
+Waiting for deployment "my-deployment" rollout to finish: 7 out of 10 new replicas have been updated...
+Waiting for deployment "my-deployment" rollout to finish: 7 out of 10 new replicas have been updated...
+Waiting for deployment "my-deployment" rollout to finish: 7 out of 10 new replicas have been updated...
+Waiting for deployment "my-deployment" rollout to finish: 7 out of 10 new replicas have been updated...
+Waiting for deployment "my-deployment" rollout to finish: 8 out of 10 new replicas have been updated...
+Waiting for deployment "my-deployment" rollout to finish: 8 out of 10 new replicas have been updated...
+Waiting for deployment "my-deployment" rollout to finish: 8 out of 10 new replicas have been updated...
+Waiting for deployment "my-deployment" rollout to finish: 9 out of 10 new replicas have been updated...
+Waiting for deployment "my-deployment" rollout to finish: 9 out of 10 new replicas have been updated...
+Waiting for deployment "my-deployment" rollout to finish: 9 out of 10 new replicas have been updated...
+Waiting for deployment "my-deployment" rollout to finish: 9 out of 10 new replicas have been updated...
+Waiting for deployment "my-deployment" rollout to finish: 9 out of 10 new replicas have been updated...
+Waiting for deployment "my-deployment" rollout to finish: 3 old replicas are pending termination...
+Waiting for deployment "my-deployment" rollout to finish: 3 old replicas are pending termination...
+Waiting for deployment "my-deployment" rollout to finish: 3 old replicas are pending termination...
+Waiting for deployment "my-deployment" rollout to finish: 2 old replicas are pending termination...
+Waiting for deployment "my-deployment" rollout to finish: 2 old replicas are pending termination...
+Waiting for deployment "my-deployment" rollout to finish: 2 old replicas are pending termination...
+Waiting for deployment "my-deployment" rollout to finish: 1 old replicas are pending termination...
+Waiting for deployment "my-deployment" rollout to finish: 1 old replicas are pending termination...
+Waiting for deployment "my-deployment" rollout to finish: 1 old replicas are pending termination...
+Waiting for deployment "my-deployment" rollout to finish: 8 of 10 updated replicas are available...
+Waiting for deployment "my-deployment" rollout to finish: 9 of 10 updated replicas are available...
+deployment "my-deployment" successfully rolled out
+```
+```commandline
+08:34:02 manojkrishnappa@Manojs-MacBook-Pro 01-INTRODUCTION → kubectl get pods
+NAME                             READY   STATUS    RESTARTS   AGE
+my-deployment-75578ddfcc-8gfk6   1/1     Running   0          74s
+my-deployment-75578ddfcc-dql4l   1/1     Running   0          109s
+my-deployment-75578ddfcc-fk52x   1/1     Running   0          109s
+my-deployment-75578ddfcc-gmpx8   1/1     Running   0          109s
+my-deployment-75578ddfcc-lfhmq   1/1     Running   0          109s
+my-deployment-75578ddfcc-lqwj6   1/1     Running   0          82s
+my-deployment-75578ddfcc-nhcx4   1/1     Running   0          109s
+my-deployment-75578ddfcc-p2lj7   1/1     Running   0          80s
+my-deployment-75578ddfcc-vxcvq   1/1     Running   0          75s
+my-deployment-75578ddfcc-xj5wt   1/1     Running   0          79s
+
+
+08:35:01 manojkrishnappa@Manojs-MacBook-Pro 01-INTRODUCTION → kubectl describe pod my-deployment-75578ddfcc-8gfk6  | grep -i "image"
+    Image:          nginx:1.26
+    Image ID:       docker.io/library/nginx@sha256:54b2f7b04062caecedd055427c58c43edf314a45fa6f7cee9d9d69e900bb9799
+  Normal  Pulled     101s  kubelet            Container image "nginx:1.26" already present on machine
+```
+
+## Testing with wrong image 
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-deployment
+  labels:
+    app: nginx
+spec:
+  replicas: 10
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:1.27.test
+        ports:
+        - containerPort: 80
+```
+
+```commandline
+08:35:29 manojkrishnappa@Manojs-MacBook-Pro 01-INTRODUCTION → kubectl apply -f deployment.yml 
+deployment.apps/my-deployment configured
+
+08:36:48 manojkrishnappa@Manojs-MacBook-Pro 01-INTRODUCTION → kubectl rollout status deployment my-deployment 
+Waiting for deployment "my-deployment" rollout to finish: 5 out of 10 new replicas have been updated...
+
+```
+
+```commandline
+08:37:22 manojkrishnappa@Manojs-MacBook-Pro 01-INTRODUCTION → kubectl get pods
+NAME                             READY   STATUS         RESTARTS   AGE
+my-deployment-74fcbb4474-26ljf   0/1     ErrImagePull   0          38s
+my-deployment-74fcbb4474-6k4m5   0/1     ErrImagePull   0          38s
+my-deployment-74fcbb4474-knk45   0/1     ErrImagePull   0          38s
+my-deployment-74fcbb4474-qc9vt   0/1     ErrImagePull   0          38s
+my-deployment-74fcbb4474-x2f2f   0/1     ErrImagePull   0          38s
+my-deployment-75578ddfcc-8gfk6   1/1     Running        0          3m39s
+my-deployment-75578ddfcc-dql4l   1/1     Running        0          4m14s
+my-deployment-75578ddfcc-fk52x   1/1     Running        0          4m14s
+my-deployment-75578ddfcc-gmpx8   1/1     Running        0          4m14s
+my-deployment-75578ddfcc-lqwj6   1/1     Running        0          3m47s
+my-deployment-75578ddfcc-nhcx4   1/1     Running        0          4m14s
+my-deployment-75578ddfcc-p2lj7   1/1     Running        0          3m45s
+my-deployment-75578ddfcc-xj5wt   1/1     Running        0          3m44s
+
+```
+```commandline
+08:37:26 manojkrishnappa@Manojs-MacBook-Pro 01-INTRODUCTION → kubectl describe pod my-deployment-74fcbb4474-26ljf  | grep -i "image"
+    Image:          nginx:1.27.test
+    Image ID:       
+      Reason:       ImagePullBackOff
+  Normal   BackOff    27s (x4 over 99s)   kubelet            Back-off pulling image "nginx:1.27.test"
+  Warning  Failed     27s (x4 over 99s)   kubelet            Error: ImagePullBackOff
+  Normal   Pulling    13s (x4 over 101s)  kubelet            Pulling image "nginx:1.27.test"
+  Warning  Failed     10s (x4 over 99s)   kubelet            Failed to pull image "nginx:1.27.test": rpc error: code = NotFound desc = failed to pull and unpack image "docker.io/library/nginx:1.27.test": failed to resolve reference "docker.io/library/nginx:1.27.test": docker.io/library/nginx:1.27.test: not found
+  Warning  Failed     10s (x4 over 99s)   kubelet            Error: ErrImagePull
+
+```
+
+```commandline
+08:39:26 manojkrishnappa@Manojs-MacBook-Pro 01-INTRODUCTION → kubectl rollout undo deployment my-deployment
+deployment.apps/my-deployment rolled back
+
+08:39:32 manojkrishnappa@Manojs-MacBook-Pro 01-INTRODUCTION → kubectl rollout status deployment my-deployment 
+deployment "my-deployment" successfully rolled out
+
+NAME                             READY   STATUS    RESTARTS   AGE
+my-deployment-75578ddfcc-8gfk6   1/1     Running   0          6m8s
+my-deployment-75578ddfcc-dql4l   1/1     Running   0          6m43s
+my-deployment-75578ddfcc-fk52x   1/1     Running   0          6m43s
+my-deployment-75578ddfcc-gmpx8   1/1     Running   0          6m43s
+my-deployment-75578ddfcc-lqwj6   1/1     Running   0          6m16s
+my-deployment-75578ddfcc-m5vt5   1/1     Running   0          23s
+my-deployment-75578ddfcc-nhcx4   1/1     Running   0          6m43s
+my-deployment-75578ddfcc-nzm92   1/1     Running   0          23s
+my-deployment-75578ddfcc-p2lj7   1/1     Running   0          6m14s
+my-deployment-75578ddfcc-xj5wt   1/1     Running   0          6m13s
+
+```
+
+## updating with correct image tag
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-deployment
+  labels:
+    app: nginx
+spec:
+  replicas: 10
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:1.27
+        ports:
+        - containerPort: 80
+```
+```commandline
+08:39:55 manojkrishnappa@Manojs-MacBook-Pro 01-INTRODUCTION → kubectl apply -f deployment.yml 
+deployment.apps/my-deployment configured
+08:40:26 manojkrishnappa@Manojs-MacBook-Pro 01-INTRODUCTION → kubectl rollout status deployment my-deployment 
+Waiting for deployment "my-deployment" rollout to finish: 5 out of 10 new replicas have been updated...
+Waiting for deployment "my-deployment" rollout to finish: 5 out of 10 new replicas have been updated...
+Waiting for deployment "my-deployment" rollout to finish: 5 out of 10 new replicas have been updated...
+Waiting for deployment "my-deployment" rollout to finish: 5 out of 10 new replicas have been updated...
+Waiting for deployment "my-deployment" rollout to finish: 6 out of 10 new replicas have been updated...
+Waiting for deployment "my-deployment" rollout to finish: 6 out of 10 new replicas have been updated...
+Waiting for deployment "my-deployment" rollout to finish: 6 out of 10 new replicas have been updated...
+Waiting for deployment "my-deployment" rollout to finish: 6 out of 10 new replicas have been updated...
+Waiting for deployment "my-deployment" rollout to finish: 8 out of 10 new replicas have been updated...
+Waiting for deployment "my-deployment" rollout to finish: 8 out of 10 new replicas have been updated...
+Waiting for deployment "my-deployment" rollout to finish: 8 out of 10 new replicas have been updated...
+Waiting for deployment "my-deployment" rollout to finish: 8 out of 10 new replicas have been updated...
+Waiting for deployment "my-deployment" rollout to finish: 9 out of 10 new replicas have been updated...
+Waiting for deployment "my-deployment" rollout to finish: 9 out of 10 new replicas have been updated...
+Waiting for deployment "my-deployment" rollout to finish: 2 old replicas are pending termination...
+Waiting for deployment "my-deployment" rollout to finish: 2 old replicas are pending termination...
+Waiting for deployment "my-deployment" rollout to finish: 2 old replicas are pending termination...
+Waiting for deployment "my-deployment" rollout to finish: 2 old replicas are pending termination...
+Waiting for deployment "my-deployment" rollout to finish: 1 old replicas are pending termination...
+Waiting for deployment "my-deployment" rollout to finish: 1 old replicas are pending termination...
+Waiting for deployment "my-deployment" rollout to finish: 9 of 10 updated replicas are available...
+deployment "my-deployment" successfully rolled out
+
+
+08:40:33 manojkrishnappa@Manojs-MacBook-Pro 01-INTRODUCTION → kubectl get pods
+NAME                            READY   STATUS    RESTARTS   AGE
+my-deployment-87cdd7684-2xjst   1/1     Running   0          49s
+my-deployment-87cdd7684-4z87v   1/1     Running   0          45s
+my-deployment-87cdd7684-8bmpv   1/1     Running   0          49s
+my-deployment-87cdd7684-bd5h9   1/1     Running   0          45s
+my-deployment-87cdd7684-d89x5   1/1     Running   0          45s
+my-deployment-87cdd7684-jhx77   1/1     Running   0          49s
+my-deployment-87cdd7684-nwcpn   1/1     Running   0          49s
+my-deployment-87cdd7684-ptgx8   1/1     Running   0          49s
+my-deployment-87cdd7684-w8ztt   1/1     Running   0          44s
+my-deployment-87cdd7684-wlbzr   1/1     Running   0          44s
+
+08:41:15 manojkrishnappa@Manojs-MacBook-Pro 01-INTRODUCTION → kubectl describe pod my-deployment-87cdd7684-2xjst | grep -i "image"
+    Image:          nginx:1.27
+    Image ID:       docker.io/library/nginx@sha256:fb197595ebe76b9c0c14ab68159fd3c08bd067ec62300583543f0ebda353b5be
+  Normal  Pulling    70s   kubelet            Pulling image "nginx:1.27"
+  Normal  Pulled     68s   kubelet            Successfully pulled image "nginx:1.27" in 2.028s (2.028s including waiting). Image size: 68524740 bytes.
+
+```
+
+
+
 
 

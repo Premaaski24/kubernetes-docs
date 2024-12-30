@@ -628,7 +628,505 @@ my-deployment-87cdd7684-wlbzr   1/1     Running   0          44s
 
 ```
 
+# SERVICES IN KUBERNETES
+---
+Services that enables communication between different componensts/ objects 
+pods/externel clients/ in a k8 cluster 
 
+## Types of services in kubernetes:
+1. Cluster IP
+2. Node Port
+3. LoadBlancer
+
+
+Services are an abstraction that define a logical set of Pods and a policy to access them. They provide stable IP addresses and DNS names for accessing these Pods, and they can also offer load balancing, service discovery, and access control.
+
+### 1. ClusterIP
+Definition: The default type of Service in Kubernetes. A ClusterIP service exposes the service on an internal IP address within the cluster, making it reachable only from within the cluster.
+Use Case: Typically used for internal communication between Pods in the same Kubernetes cluster.
+#### How It Works:
+A virtual IP (known as the ClusterIP) is assigned to the service.
+Kubernetes uses iptables or IPVS (depending on your setup) to route traffic from the service’s IP to the Pods backing the service.
+Not accessible from outside the cluster unless you have other means like kubectl port-forward or exposing the service externally via NodePort or LoadBalancer.
+
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-service
+spec:
+  selector:
+    app: my-app
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8080
+  type: ClusterIP
+
+```
+
+### 2. NodePort
+Definition: A type of Kubernetes Service that exposes the service on a static port on each node's IP address. This allows external traffic to access the service by connecting to any node's IP on the specified port.
+Use Case: Useful for exposing services to external clients or for use in development environments where you need to quickly expose a service externally without configuring an external load balancer.
+#### How It Works:
+Kubernetes allocates a port in the range of 30000-32767 (default range) on each node in the cluster.
+Traffic directed to NodeIP:NodePort will be forwarded to the appropriate Pod.
+It's a simple way to expose a service, but it has limitations compared to LoadBalancer, especially for production-grade environments.
+External access can be done by accessing any node's IP and port.
+
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-service
+spec:
+  selector:
+    app: my-app
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8080
+      nodePort: 30007
+  type: NodePort
+
+```
+### 3. LoadBalancer
+Definition: A type of Kubernetes Service that provisions an external load balancer (typically provided by the cloud provider) to distribute incoming traffic to the service. This type is mainly used in cloud environments.
+Use Case: Ideal for production environments where you want to expose your service to external traffic with automatic load balancing and high availability.
+#### How It Works:
+When you create a LoadBalancer service, Kubernetes communicates with the cloud provider's API to create an external load balancer.
+The cloud provider assigns a public IP address to the load balancer.
+Traffic coming to that public IP is automatically forwarded to the service and distributed across the Pods.
+Useful for web applications, APIs, and other services that require external access with built-in load balancing and scaling.
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-service
+spec:
+  selector:
+    app: my-app
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8080
+  type: LoadBalancer
+
+```
+## Summary:
+**ClusterIP:** Exposes the service internally within the Kubernetes cluster (default, not accessible externally).
+
+**NodePort:** Exposes the service on a static port across all cluster nodes, making it accessible externally by connecting to NodeIP:NodePort.
+
+**LoadBalancer:** Creates an external load balancer (typically in cloud environments) to distribute traffic across Pods, providing external access with automatic load balancing.
+
+![img_5.png](img_5.png)
+
+
+
+
+example:
+
+deployment.yml
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-deployment
+  labels:
+    app: nginx
+spec:
+  replicas: 10
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:1.27
+        ports:
+        - containerPort: 80
+```
+service.yml
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx-nodeport
+spec:
+  selector:
+    app: nginx
+  ports:
+    - protocol: TCP
+      port: 80  #this is within cluster
+      targetPort: 80 #port on container
+      nodePort: 30010 #exposed port
+  type: NodePort
+```
+
+
+```commandline
+root@ip-172-31-20-191:~# kubectl apply -f deployment.yml 
+deployment.apps/my-deployment created
+
+root@ip-172-31-20-191:~# kubectl get pods
+NAME                            READY   STATUS    RESTARTS   AGE
+my-deployment-87cdd7684-2p95t   1/1     Running   0          29s
+my-deployment-87cdd7684-7trzw   1/1     Running   0          29s
+my-deployment-87cdd7684-8zvwc   1/1     Running   0          29s
+my-deployment-87cdd7684-9f5zh   1/1     Running   0          29s
+my-deployment-87cdd7684-b8xlh   1/1     Running   0          29s
+my-deployment-87cdd7684-bflc2   1/1     Running   0          29s
+my-deployment-87cdd7684-f86hx   1/1     Running   0          29s
+my-deployment-87cdd7684-mttvr   1/1     Running   0          29s
+my-deployment-87cdd7684-smt6l   1/1     Running   0          29s
+my-deployment-87cdd7684-vzg6p   1/1     Running   0          29s
+
+root@ip-172-31-20-191:~# kubectl apply -f service.yml 
+service/nginx-nodeport created
+root@ip-172-31-20-191:~# kubectl get svc
+NAME             TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)        AGE
+kubernetes       ClusterIP   10.152.183.1     <none>        443/TCP        37m
+nginx-nodeport   NodePort    10.152.183.182   <none>        80:30010/TCP   9s
+root@ip-172-31-20-191:~# kubectl get deployments
+NAME            READY   UP-TO-DATE   AVAILABLE   AGE
+my-deployment   10/10   10           10          6m43s
+```
+![img_6.png](img_6.png)
+
+# NAMESPACE
+LOGICAL SEPARTAION OF YOUR PHYSICAL SERVER
+
+![img_7.png](img_7.png)
+
+## Default namespaces in kubernetes
+
+* default: The deault namespace where resource are created if no namespaces is specified
+* kube-system: the namespace which includes all the static pod/ control or worker node compnonets
+* kube-public: to enable to read-only mode for pods we are using kube-public
+* kube-node-lease: used to track the node heartbeat 
+
+
+```commandline
+root@ip-172-31-16-37:~# kubectl get ns
+NAME              STATUS   AGE
+default           Active   54s
+kube-node-lease   Active   54s
+kube-public       Active   54s
+kube-system       Active   54s
+```
+
+```commandline
+root@ip-172-31-16-37:~# kubectl get pods
+No resources found in default namespace.
+root@ip-172-31-16-37:~# kubectl get pods -n kube-public
+No resources found in kube-public namespace.
+root@ip-172-31-16-37:~# kubectl get pods -n kube-system
+NAME                                       READY   STATUS    RESTARTS   AGE
+calico-kube-controllers-759cd8b574-86shz   1/1     Running   0          2m35s
+calico-node-xv6vg                          1/1     Running   0          2m36s
+coredns-7896dbf49-qns9t                    1/1     Running   0          2m35s
+root@ip-172-31-16-37:~# kubectl get pods -n kube-node-lease
+No resources found in kube-node-lease namespace.
+```
+### IMPARATIVE WAY CREATING NAMESPACE
+
+```commandline
+root@ip-172-31-16-37:~# kubectl create ns uday
+namespace/uday created
+root@ip-172-31-16-37:~# kubectl get ns
+NAME              STATUS   AGE
+default           Active   4m46s
+kube-node-lease   Active   4m46s
+kube-public       Active   4m46s
+kube-system       Active   4m46s
+uday              Active   6s
+```
+
+
+### Declartive way creating ns
+```yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: sindhu
+```
+
+```commandline
+root@ip-172-31-16-37:~# vi ns.yml
+root@ip-172-31-16-37:~# kubectl apply -f ns.yml
+namespace/sindhu created
+
+root@ip-172-31-16-37:~# kubectl get ns
+NAME              STATUS   AGE
+default           Active   7m19s
+kube-node-lease   Active   7m19s
+kube-public       Active   7m19s
+kube-system       Active   7m19s
+sindhu            Active   13s
+uday              Active   2m39s
+```
+## DECLARING POD 
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: cka-pod
+spec:
+  containers:
+    - name: my-container
+      image: nginx
+```
+```commandline
+root@ip-172-31-16-37:~# vi pod.yml
+root@ip-172-31-16-37:~# kubectl apply -f pod.yml
+pod/cka-pod created
+root@ip-172-31-16-37:~# kubectl get pods
+NAME      READY   STATUS    RESTARTS   AGE
+cka-pod   1/1     Running   0          11s
+root@ip-172-31-16-37:~# kubectl apply -f pod.yml  -n uday
+pod/cka-pod created
+root@ip-172-31-16-37:~# kubectl get pods -n uday
+NAME      READY   STATUS    RESTARTS   AGE
+cka-pod   1/1     Running   0          5s
+```
+
+
+## DECLARING POD USING NAMESPACE
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: cka-pod
+  namespace: sindhu
+spec:
+  containers:
+    - name: my-container
+      image: nginx
+```
+
+```commandline
+root@ip-172-31-16-37:~# vi pod.yml
+root@ip-172-31-16-37:~# kubectl delete pod cka-pod
+pod "cka-pod" deleted
+root@ip-172-31-16-37:~# kubectl get pods
+No resources found in default namespace.
+root@ip-172-31-16-37:~# kubectl apply -f pod.yml
+pod/cka-pod created
+root@ip-172-31-16-37:~# kubectl get pods
+No resources found in default namespace.
+root@ip-172-31-16-37:~# kubectl get pods -n sindhu
+NAME      READY   STATUS    RESTARTS   AGE
+cka-pod   1/1     Running   0          10s
+```
+
+## ESTABLISHING THE COMMUNICATION BETWEEN NAMESPACE
+
+```commandline
+root@ip-172-31-16-37:~# kubectl get pods -o wide -n uday
+NAME      READY   STATUS    RESTARTS   AGE    IP             NODE              NOMINATED NODE   READINESS GATES
+cka-pod   1/1     Running   0          4m9s   10.1.204.132   ip-172-31-16-37   <none>           <none>
+root@ip-172-31-16-37:~# kubectl get pods -o wide -n sindhu
+NAME      READY   STATUS    RESTARTS   AGE    IP             NODE              NOMINATED NODE   READINESS GATES
+cka-pod   1/1     Running   0          112s   10.1.204.133   ip-172-31-16-37   <none>           <none>
+root@ip-172-31-16-37:~# kubectl exec -it cka-pod -n uday -- bash
+root@cka-pod:/# curl -v 10.1.204.133
+*   Trying 10.1.204.133:80...
+* Connected to 10.1.204.133 (10.1.204.133) port 80 (#0)
+> GET / HTTP/1.1
+> Host: 10.1.204.133
+> User-Agent: curl/7.88.1
+> Accept: */*
+>
+< HTTP/1.1 200 OK
+< Server: nginx/1.27.3
+< Date: Mon, 30 Dec 2024 08:53:37 GMT
+< Content-Type: text/html
+< Content-Length: 615
+< Last-Modified: Tue, 26 Nov 2024 15:55:00 GMT
+< Connection: keep-alive
+< ETag: "6745ef54-267"
+< Accept-Ranges: bytes
+<
+<!DOCTYPE html>
+<html>
+<head>
+<title>Welcome to nginx!</title>
+<style>
+html { color-scheme: light dark; }
+body { width: 35em; margin: 0 auto;
+font-family: Tahoma, Verdana, Arial, sans-serif; }
+</style>
+</head>
+<body>
+<h1>Welcome to nginx!</h1>
+<p>If you see this page, the nginx web server is successfully installed and
+working. Further configuration is required.</p>
+
+<p>For online documentation and support please refer to
+<a href="http://nginx.org/">nginx.org</a>.<br/>
+Commercial support is available at
+<a href="http://nginx.com/">nginx.com</a>.</p>
+
+<p><em>Thank you for using nginx.</em></p>
+</body>
+</html>
+* Connection #0 to host 10.1.204.133 left intact
+```
+
+
+DNS RESOLVING 
+
+DEPLOYMENT.YML
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-deployment
+  labels:
+    app: nginx
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:1.27
+        ports:
+        - containerPort: 80
+```
+
+service.yml
+```commandline
+root@ip-172-31-16-37:~# cat service.yml
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx-nodeport-uday
+spec:
+  selector:
+    app: nginx
+  ports:
+    - protocol: TCP
+      port: 80  #this is within cluster
+      targetPort: 80 #port on container
+  type: NodePort
+```
+
+Create in  both namespace
+
+```commandline
+root@ip-172-31-16-37:~# vi service.yml
+root@ip-172-31-16-37:~# kubectl apply -f service.yml -n uday
+service/nginx-nodeport-uday created
+root@ip-172-31-16-37:~# kubectl get svc
+NAME         TYPE        CLUSTER-IP     EXTERNAL-IP   PORT(S)   AGE
+kubernetes   ClusterIP   10.152.183.1   <none>        443/TCP   51m
+root@ip-172-31-16-37:~# kubectl get svc -n uday
+NAME                  TYPE       CLUSTER-IP       EXTERNAL-IP   PORT(S)        AGE
+nginx-nodeport-uday   NodePort   10.152.183.122   <none>        80:30168/TCP   10s
+root@ip-172-31-16-37:~# kubectl get pods -n uday
+NAME                            READY   STATUS    RESTARTS   AGE
+cka-pod                         1/1     Running   0          39m
+my-deployment-87cdd7684-z66m9   1/1     Running   0          45s
+root@ip-172-31-16-37:~# kubectl exec -it my-deployment-87cdd7684-z66m9 -n uday -- bash
+root@my-deployment-87cdd7684-z66m9:/# curl nginx-nodeport
+curl: (6) Could not resolve host: nginx-nodeport
+root@my-deployment-87cdd7684-z66m9:/# curl svc-nginx-nodeport
+curl: (6) Could not resolve host: svc-nginx-nodeport
+root@my-deployment-87cdd7684-z66m9:/# curl nginx-nodeport.sindhu.svc.cluster.local
+<!DOCTYPE html>
+<html>
+<head>
+<title>Welcome to nginx!</title>
+<style>
+html { color-scheme: light dark; }
+body { width: 35em; margin: 0 auto;
+font-family: Tahoma, Verdana, Arial, sans-serif; }
+</style>
+</head>
+<body>
+<h1>Welcome to nginx!</h1>
+<p>If you see this page, the nginx web server is successfully installed and
+working. Further configuration is required.</p>
+
+<p>For online documentation and support please refer to
+<a href="http://nginx.org/">nginx.org</a>.<br/>
+Commercial support is available at
+<a href="http://nginx.com/">nginx.com</a>.</p>
+
+<p><em>Thank you for using nginx.</em></p>
+</body>
+</html>
+```
+
+from sindhu namespace:
+```commandline
+root@ip-172-31-16-37:~# vi deployment.yml
+root@ip-172-31-16-37:~# kubectl apply -f deployment.yml
+deployment.apps/my-deployment created
+root@ip-172-31-16-37:~# kubectl apply -f deployment.yml -n sindhu
+deployment.apps/my-deployment created
+root@ip-172-31-16-37:~# vi service.yml
+root@ip-172-31-16-37:~# kubectl apply -f service.yml -n sindhu
+service/nginx-nodeport created
+root@ip-172-31-16-37:~# kubectl get svc -n sindhu
+NAME             TYPE       CLUSTER-IP      EXTERNAL-IP   PORT(S)        AGE
+nginx-nodeport   NodePort   10.152.183.77   <none>        80:30010/TCP   9s
+root@ip-172-31-16-37:~# kubectl get pods -n sindhu
+NAME                            READY   STATUS    RESTARTS   AGE
+cka-pod                         1/1     Running   0          37m
+my-deployment-87cdd7684-js226   1/1     Running   0          3m49s
+root@ip-172-31-16-37:~# kubectl exec -it my-deployment-87cdd7684-js226 -n sindhu -- bash
+root@my-deployment-87cdd7684-js226:/# cat /etc/resolv.conf
+search sindhu.svc.cluster.local svc.cluster.local cluster.local ec2.internal
+nameserver 10.152.183.10
+options ndots:5
+root@my-deployment-87cdd7684-js226:/# curl nginx-nodeport-uday.uday.svc.cluster.local
+<!DOCTYPE html>
+<html>
+<head>
+<title>Welcome to nginx!</title>
+<style>
+html { color-scheme: light dark; }
+body { width: 35em; margin: 0 auto;
+font-family: Tahoma, Verdana, Arial, sans-serif; }
+</style>
+</head>
+<body>
+<h1>Welcome to nginx!</h1>
+<p>If you see this page, the nginx web server is successfully installed and
+working. Further configuration is required.</p>
+
+<p>For online documentation and support please refer to
+<a href="http://nginx.org/">nginx.org</a>.<br/>
+Commercial support is available at
+<a href="http://nginx.com/">nginx.com</a>.</p>
+
+<p><em>Thank you for using nginx.</em></p>
+</body>
+</html>
+```
+
+## command to resolve
+```commandline
+<service-name>.<namespace>.<svc.cluster.local>
+```
+```commandline
+curl nginx-nodeport-uday.uday.svc.cluster.local
+```
+
+![img_9.png](img_9.png)
 
 
 

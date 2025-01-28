@@ -5,7 +5,7 @@ metadata:
   labels:
     app: movie
 spec:
-  replicas: 3 # Number of instances to run
+  replicas: 4 # Number of instances to run
   selector:
     matchLabels:
       app: movie

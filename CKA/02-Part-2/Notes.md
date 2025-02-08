@@ -499,3 +499,73 @@ nginx   1/1     Running   0          20m     10.244.2.5   manoj-cka-cluster-work
 08:19:02 manojkrishnappa@Manojs-MacBook-Pro 02-Part-2 ±|main ✗|→ kubectl run manoj --image=nginx
 
 ```
+
+# NodeSelctor
+---
+
+```commandline
+10:34:13 manojkrishnappa@Manojs-MacBook-Pro 02-Part-2 ±|main ✗|→ kubectl apply -f nodeselectors.yml 
+Error from server (BadRequest): error when creating "nodeselectors.yml": Pod in version "v1" cannot be handled as a Pod: json: cannot unmarshal string into Go struct field PodSpec.spec.nodeSelector of type map[string]string
+10:34:22 manojkrishnappa@Manojs-MacBook-Pro 02-Part-2 ±|main ✗|→ kubectl apply -f nodeselectors.yml 
+pod/myapp created
+10:34:59 manojkrishnappa@Manojs-MacBook-Pro 02-Part-2 ±|main ✗|→ 
+10:34:59 manojkrishnappa@Manojs-MacBook-Pro 02-Part-2 ±|main ✗|→ kubectl get pods
+NAME    READY   STATUS    RESTARTS   AGE
+myapp   0/1     Pending   0          6s
+10:35:06 manojkrishnappa@Manojs-MacBook-Pro 02-Part-2 ±|main ✗|→ kubectl get pods
+NAME    READY   STATUS    RESTARTS   AGE
+myapp   0/1     Pending   0          8s
+10:35:07 manojkrishnappa@Manojs-MacBook-Pro 02-Part-2 ±|main ✗|→ kubectl describe pod myapp
+Name:             myapp
+Namespace:        default
+Priority:         0
+Service Account:  default
+Node:             <none>
+Labels:           run=myapp
+Annotations:      <none>
+Status:           Pending
+IP:               
+IPs:              <none>
+Containers:
+  myapp:
+    Image:        nginx
+    Port:         <none>
+    Host Port:    <none>
+    Environment:  <none>
+    Mounts:
+      /var/run/secrets/kubernetes.io/serviceaccount from kube-api-access-xkz2h (ro)
+Conditions:
+  Type           Status
+  PodScheduled   False 
+Volumes:
+  kube-api-access-xkz2h:
+    Type:                    Projected (a volume that contains injected data from multiple sources)
+    TokenExpirationSeconds:  3607
+    ConfigMapName:           kube-root-ca.crt
+    ConfigMapOptional:       <nil>
+    DownwardAPI:             true
+QoS Class:                   BestEffort
+Node-Selectors:              gpu=false
+Tolerations:                 node.kubernetes.io/not-ready:NoExecute op=Exists for 300s
+                             node.kubernetes.io/unreachable:NoExecute op=Exists for 300s
+Events:
+  Type     Reason            Age   From               Message
+  ----     ------            ----  ----               -------
+  Warning  FailedScheduling  19s   default-scheduler  0/4 nodes are available: 1 node(s) had untolerated taint {node-role.kubernetes.io/control-plane: }, 3 node(s) didn't match Pod's node affinity/selector. preemption: 0/4 nodes are available: 4 Preemption is not helpful for scheduling.
+
+```
+
+```commandline
+10:36:54 manojkrishnappa@Manojs-MacBook-Pro 02-Part-2 ±|main ✗|→ kubectl label node manoj-cka-cluster-worker3 gpu=false
+node/manoj-cka-cluster-worker3 labeled
+10:37:13 manojkrishnappa@Manojs-MacBook-Pro 02-Part-2 ±|main ✗|→ kubectl get pods
+NAME    READY   STATUS    RESTARTS   AGE
+myapp   1/1     Running   0          2m18s
+
+10:38:01 manojkrishnappa@Manojs-MacBook-Pro 02-Part-2 ±|main ✗|→ kubectl get nodes --show-labels | grep -i "gpu="
+manoj-cka-cluster-worker3         Ready    <none>          20d   v1.31.2   beta.kubernetes.io/arch=arm64,beta.kubernetes.io/os=linux,gpu=false,kubernetes.io/arch=arm64,kubernetes.io/hostname=manoj-cka-cluster-worker3,kubernetes.io/os=linux
+
+```
+
+#schedule pod using node affinty
+
